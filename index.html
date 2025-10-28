@@ -1,0 +1,439 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Cybersecurity Intelligence Dashboard</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <style>
+    :root {
+      --bg: #0b1020;
+      --panel: #111735;
+      --panel-2: #0f1530;
+      --text: #e6e9ef;
+      --muted: #9aa4b2;
+      --primary: #6ea8fe;
+      --accent: #5eead4;
+      --danger: #f87171;
+      --warning: #fbbf24;
+      --success: #34d399;
+      --grid: #1f2a4a;
+    }
+    * { box-sizing: border-box; }
+    html, body { height: 100%; }
+    body {
+      margin: 0; font-family: 'Inter', system-ui, -apple-system, Segoe UI, Roboto, Arial, sans-serif;
+      background: radial-gradient(1200px 700px at 80% -10%, #1a2148 0%, rgba(17,23,53,0) 60%),
+                  radial-gradient(1000px 600px at -10% 0%, #0b4a6f 0%, rgba(11,16,32,0) 60%),
+                  var(--bg);
+      color: var(--text);
+    }
+    header {
+      padding: 24px 24px 8px; position: sticky; top: 0; z-index: 10; backdrop-filter: blur(8px);
+      background: linear-gradient(180deg, rgba(11,16,32,0.75) 0%, rgba(11,16,32,0.35) 100%);
+      border-bottom: 1px solid rgba(255,255,255,0.06);
+    }
+    .title {
+      display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
+    }
+    .title h1 { margin: 0; font-size: 20px; font-weight: 700; letter-spacing: 0.2px; }
+    .badge { font-size: 12px; color: var(--panel); background: linear-gradient(135deg, var(--accent), #60a5fa);
+      padding: 6px 10px; border-radius: 999px; font-weight: 700; }
+    .sub { margin-top: 6px; color: var(--muted); font-size: 13px; }
+
+    main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+
+    .grid {
+      display: grid; grid-template-columns: 1fr; gap: 16px;
+    }
+    @media (min-width: 900px) {
+      .grid { grid-template-columns: 1.15fr 0.85fr; }
+    }
+
+    .card {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.02));
+      border: 1px solid rgba(255,255,255,0.06);
+      border-radius: 14px; overflow: hidden; box-shadow: 0 10px 30px rgba(0,0,0,0.25);
+    }
+    .card-header { display: flex; align-items: center; justify-content: space-between; gap: 10px;
+      padding: 14px 16px; border-bottom: 1px solid rgba(255,255,255,0.06);
+      background: linear-gradient(180deg, rgba(17,23,53,0.7), rgba(17,23,53,0.4));
+    }
+    .card-title { margin: 0; font-size: 14px; font-weight: 700; letter-spacing: .3px; text-transform: uppercase; color: #d4dcff; }
+    .card-actions { display: flex; gap: 8px; }
+    .btn {
+      background: rgba(255,255,255,0.06); color: var(--text); border: 1px solid rgba(255,255,255,0.08);
+      padding: 6px 10px; border-radius: 8px; font-size: 12px; cursor: pointer; transition: 120ms ease;
+    }
+    .btn:hover { background: rgba(255,255,255,0.1); }
+
+    .card-body { padding: 16px; }
+
+    .stats {
+      display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-bottom: 12px;
+    }
+    .stat {
+      background: linear-gradient(180deg, rgba(255,255,255,0.03), rgba(255,255,255,0.015));
+      border: 1px solid rgba(255,255,255,0.06); border-radius: 12px; padding: 10px 12px;
+    }
+    .stat .label { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+    .stat .value { font-size: 18px; font-weight: 700; margin-top: 4px; }
+
+    .news {
+      display: grid; gap: 10px; max-height: 560px; overflow: auto; padding: 10px;
+      background: linear-gradient(180deg, rgba(255,255,255,0.02), rgba(255,255,255,0.01));
+      border: 1px dashed rgba(255,255,255,0.08); border-radius: 12px;
+    }
+    .news::-webkit-scrollbar { height: 8px; width: 8px; }
+    .news::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.08); border-radius: 999px; }
+
+    .news-item { display: grid; gap: 6px; padding: 10px 12px; background: rgba(255,255,255,0.03); border-radius: 10px; border: 1px solid rgba(255,255,255,0.06); }
+    .news-item .source { font-size: 11px; color: var(--muted); text-transform: uppercase; letter-spacing: .3px; }
+    .news-item a { color: var(--accent); text-decoration: none; font-weight: 600; }
+    .news-item a:hover { text-decoration: underline; }
+    .news-item .meta { color: var(--muted); font-size: 12px; }
+
+    .footer-note { color: var(--muted); font-size: 12px; margin-top: 12px; }
+
+    /* Chart canvas container for nice aspect ratios */
+    .canvas-wrap { position: relative; height: 320px; }
+
+    .legend { display: flex; gap: 12px; flex-wrap: wrap; font-size: 12px; color: var(--muted); margin-top: 8px; }
+    .legend .dot { display: inline-block; width: 10px; height: 10px; border-radius: 999px; margin-right: 6px; }
+
+    .row { display: grid; gap: 16px; grid-template-columns: 1fr; }
+    @media (min-width: 900px) { .row { grid-template-columns: 1fr 1fr; } }
+
+    .timeframe { color: var(--muted); font-size: 12px; }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="title">
+      <svg width="24" height="24" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg">
+        <path d="M12 2L3 7v5c0 5 3.8 9.7 9 10 5.2-.3 9-5 9-10V7l-9-5Z" stroke="#5eead4" stroke-width="1.5"/>
+        <path d="M9 12l2 2 4-4" stroke="#6ea8fe" stroke-width="1.5" stroke-linecap="round"/>
+      </svg>
+      <h1>Cybersecurity Intelligence Dashboard</h1>
+      <span class="badge">Live</span>
+    </div>
+    <div class="sub">Visualize cybercrime trends and track the latest cyber threat news in real-time.</div>
+  </header>
+
+  <main>
+    <div class="grid">
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Monthly Cybercrime Volume</h2>
+          <div class="card-actions">
+            <select class="btn" id="regionSelect" aria-label="Select region">
+              <option value="Global">Global</option>
+              <option value="India">India</option>
+            </select>
+            <span class="timeframe" id="timeframeLabel">Last 12 months</span>
+          </div>
+        </div>
+        <div class="card-body">
+          <div class="stats">
+            <div class="stat">
+              <div class="label">Total incidents</div>
+              <div class="value" id="statTotal">-</div>
+            </div>
+            <div class="stat">
+              <div class="label">Avg / month</div>
+              <div class="value" id="statAvg">-</div>
+            </div>
+            <div class="stat">
+              <div class="label">Peak month</div>
+              <div class="value" id="statPeak">-</div>
+            </div>
+          </div>
+          <div class="canvas-wrap">
+            <canvas id="lineChart"></canvas>
+          </div>
+          <div class="legend">
+            <span><span class="dot" style="background:#60a5fa"></span>All cybercrimes</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card">
+        <div class="card-header">
+          <h2 class="card-title">Crimes by Type</h2>
+          <div class="card-actions"></div>
+        </div>
+        <div class="card-body">
+          <div class="canvas-wrap">
+            <canvas id="barChart"></canvas>
+          </div>
+          <div class="legend">
+            <span><span class="dot" style="background:#a78bfa"></span>Phishing</span>
+            <span><span class="dot" style="background:#f87171"></span>Malware</span>
+            <span><span class="dot" style="background:#34d399"></span>Data Breach</span>
+            <span><span class="dot" style="background:#fbbf24"></span>Ransomware</span>
+            <span><span class="dot" style="background:#22d3ee"></span>DDoS</span>
+          </div>
+        </div>
+      </section>
+
+      <section class="card" style="grid-column: 1 / -1;">
+        <div class="card-header">
+          <h2 class="card-title">Live Cybersecurity News Feed</h2>
+          <div class="card-actions">
+            <button class="btn" id="refreshNewsBtn" title="Refresh feed">Refresh</button>
+          </div>
+        </div>
+        <div class="card-body">
+          <div id="newsContainer" class="news" aria-live="polite"></div>
+          <div class="footer-note">Sources: The Hacker News, Krebs on Security, US-CERT, BleepingComputer (via RSS). Updated every 15 minutes.</div>
+        </div>
+      </section>
+    </div>
+  </main>
+
+  <script>
+    function rand(min, max) { return Math.floor(Math.random() * (max - min + 1)) + min; }
+    function formatNumber(n) { return n.toLocaleString(); }
+
+    const months = (() => {
+      const arr = [];
+      const now = new Date();
+      for (let i = 11; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        arr.push(d.toLocaleString(undefined, { month: 'short' }));
+      }
+      return arr;
+    })();
+
+    const regionData = {
+      Global: {
+        monthly: [
+          82000, 91000, 98000, 105000, 99000, 112000, 120000, 125000, 131000, 138000, 145000, 152000
+        ],
+        typePercents: [42, 21, 15, 12, 10]
+      },
+      India: {
+        monthly: [
+          7800, 8200, 9100, 9900, 10300, 11200, 12000, 12800, 13400, 14100, 15300, 16200
+        ],
+        typePercents: [48, 18, 12, 14, 8]
+      }
+    };
+
+    let currentRegion = 'Global';
+    let monthlyData = [...regionData[currentRegion].monthly];
+
+    function updateStats(data) {
+      const total = data.reduce((a,b) => a+b, 0);
+      const avg = Math.round(total / data.length);
+      const peakIdx = data.indexOf(Math.max(...data));
+      document.getElementById('statTotal').textContent = formatNumber(total);
+      document.getElementById('statAvg').textContent = formatNumber(avg);
+      document.getElementById('statPeak').textContent = months[peakIdx];
+    }
+
+    const lineCtx = document.getElementById('lineChart');
+    const lineChart = new Chart(lineCtx, {
+      type: 'line',
+      data: {
+        labels: months,
+        datasets: [{
+          label: 'Incidents',
+          data: monthlyData,
+          cubicInterpolationMode: 'monotone',
+          borderColor: '#60a5fa',
+          backgroundColor: 'rgba(96,165,250,0.2)',
+          pointRadius: 3,
+          tension: 0.38,
+          fill: true,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: {
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            ticks: { color: '#cbd5e1' }
+          },
+          y: {
+            beginAtZero: true,
+            grid: { color: 'rgba(255,255,255,0.06)' },
+            ticks: { color: '#cbd5e1' }
+          }
+        },
+        plugins: {
+          legend: { display: false },
+          tooltip: { mode: 'index', intersect: false }
+        },
+        interaction: { mode: 'nearest', axis: 'x', intersect: false }
+      }
+    });
+
+    updateStats(monthlyData);
+
+    // Shuffle removed by request
+
+    // Crimes by type (bar chart)
+    const types = ['Phishing', 'Malware', 'Data Breach', 'Ransomware', 'DDoS'];
+    let typeData = [...regionData[currentRegion].typePercents];
+    const colors = ['#a78bfa','#f87171','#34d399','#fbbf24','#22d3ee'];
+
+    const barCtx = document.getElementById('barChart');
+    const barChart = new Chart(barCtx, {
+      type: 'bar',
+      data: {
+        labels: types,
+        datasets: [{
+          label: 'Share (%)',
+          data: typeData,
+          backgroundColor: colors.map(c => c + 'cc'),
+          borderColor: colors,
+          borderWidth: 1,
+          borderRadius: 8,
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        scales: {
+          x: { grid: { display: false }, ticks: { color: '#cbd5e1' } },
+          y: { beginAtZero: true, grid: { color: 'rgba(255,255,255,0.06)' }, ticks: { color: '#cbd5e1' }, max: 60 }
+        },
+        plugins: { legend: { display: false } }
+      }
+    });
+
+    // Rebalance feature removed by request
+
+    document.getElementById('regionSelect').addEventListener('change', (e) => {
+      currentRegion = e.target.value;
+      monthlyData = [...regionData[currentRegion].monthly];
+      typeData = [...regionData[currentRegion].typePercents];
+      lineChart.data.datasets[0].data = monthlyData;
+      barChart.data.datasets[0].data = typeData;
+      lineChart.update();
+      barChart.update();
+      updateStats(monthlyData);
+    });
+
+    // Live News Feed via RSS + AllOrigins CORS proxy
+    const newsContainer = document.getElementById('newsContainer');
+    const rssFeeds = [
+      { name: 'The Hacker News', url: 'https://feeds.feedburner.com/TheHackersNews' },
+      { name: 'Krebs on Security', url: 'https://krebsonsecurity.com/feed/' },
+      { name: 'US-CERT', url: 'https://www.cisa.gov/cybersecurity-advisories/alerts.xml' },
+      { name: 'BleepingComputer', url: 'https://www.bleepingcomputer.com/feed/' }
+    ];
+
+    function timeAgo(date) {
+      const seconds = Math.floor((Date.now() - date.getTime()) / 1000);
+      const intervals = [
+        ['year', 31536000], ['month', 2592000], ['day', 86400], ['hour', 3600], ['minute', 60]
+      ];
+      for (const [name, secs] of intervals) {
+        const v = Math.floor(seconds / secs);
+        if (v >= 1) return `${v} ${name}${v>1?'s':''} ago`;
+      }
+      return 'just now';
+    }
+
+    async function fetchRSS(feed) {
+      // Try multiple CORS-friendly endpoints for robustness
+      const endpoints = [
+        { type: 'allorigins-json', url: `https://api.allorigins.win/get?url=${encodeURIComponent(feed.url)}` },
+        { type: 'allorigins-raw',  url: `https://api.allorigins.win/raw?url=${encodeURIComponent(feed.url)}` },
+        { type: 'jina',            url: `https://r.jina.ai/http://${feed.url.replace(/^https?:\/\//, '')}` },
+        { type: 'corsproxy',       url: `https://cors.isomorphic-git.org/${feed.url}` },
+      ];
+
+      let lastErr = null;
+      for (const ep of endpoints) {
+        try {
+          const r = await fetch(ep.url, { headers: { 'Accept': 'text/xml,application/xml,text/plain,application/json' } });
+          if (!r.ok) throw new Error(`${ep.type} status ${r.status}`);
+          if (ep.type === 'allorigins-json') {
+            const j = await r.json();
+            const xml = j.contents;
+            return new DOMParser().parseFromString(xml, 'text/xml');
+          } else {
+            const text = await r.text();
+            return new DOMParser().parseFromString(text, 'text/xml');
+          }
+        } catch (e) {
+          lastErr = e;
+          // try next endpoint
+        }
+      }
+      throw lastErr || new Error('All feed proxies failed');
+    }
+
+    function parseItems(doc) {
+      const items = [...doc.querySelectorAll('item')].map(it => ({
+        title: it.querySelector('title')?.textContent?.trim() || 'Untitled',
+        link: it.querySelector('link')?.textContent?.trim() || '#',
+        pubDate: it.querySelector('pubDate')?.textContent || it.querySelector('updated')?.textContent || new Date().toUTCString(),
+        source: doc.querySelector('channel > title')?.textContent?.trim() || doc.querySelector('feed > title')?.textContent?.trim() || 'Unknown'
+      }));
+
+      if (items.length === 0) {
+        // Atom feeds
+        return [...doc.querySelectorAll('entry')].map(it => ({
+          title: it.querySelector('title')?.textContent?.trim() || 'Untitled',
+          link: it.querySelector('link')?.getAttribute('href') || '#',
+          pubDate: it.querySelector('updated')?.textContent || new Date().toUTCString(),
+          source: doc.querySelector('feed > title')?.textContent?.trim() || 'Unknown'
+        }));
+      }
+      return items;
+    }
+
+    function renderNews(items) {
+      newsContainer.innerHTML = '';
+      if (!items.length) {
+        newsContainer.innerHTML = '<div class="news-item">No news found.</div>';
+        return;
+      }
+      const frag = document.createDocumentFragment();
+      items.slice(0, 30).forEach(n => {
+        const d = new Date(n.pubDate);
+        const el = document.createElement('div');
+        el.className = 'news-item';
+        el.innerHTML = `
+          <div class="source">${n.source}</div>
+          <a href="${n.link}" target="_blank" rel="noopener noreferrer">${n.title}</a>
+          <div class="meta">${isNaN(d) ? '' : timeAgo(d)}</div>
+        `;
+        frag.appendChild(el);
+      });
+      newsContainer.appendChild(frag);
+    }
+
+    async function loadNews() {
+      newsContainer.innerHTML = '<div class="news-item">Loading latest cybersecurity headlines…</div>';
+      try {
+        const all = await Promise.allSettled(rssFeeds.map(fetchRSS));
+        const items = all.flatMap((res, i) => {
+          if (res.status === 'fulfilled') {
+            const parsed = parseItems(res.value).map(x => ({ ...x, source: rssFeeds[i].name || x.source }));
+            return parsed;
+          }
+          return [];
+        });
+        items.sort((a,b) => new Date(b.pubDate) - new Date(a.pubDate));
+        renderNews(items);
+      } catch (e) {
+        newsContainer.innerHTML = `<div class="news-item">Failed to load feeds. ${e?.message || ''}</div>`;
+      }
+    }
+
+    document.getElementById('refreshNewsBtn').addEventListener('click', loadNews);
+
+    loadNews();
+    setInterval(loadNews, 15 * 60 * 1000);
+  </script>
+</body>
+</html>
